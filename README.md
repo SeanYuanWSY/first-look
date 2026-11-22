@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>A pre-release repository audit &amp; cold-start check skill for AI coding agents.</strong><br />
-  站在第一次打开仓库的陌生访客视角，帮你查清<strong>外人看它是什么、真正带了什么与缺了什么、哪些不该露的内容已经暴露</strong>。
+  See your repository through a first-time visitor's eyes: what it appears to be, what it actually ships vs. misses, and what unintended traces are already exposed.
 </p>
 
 <p align="center">
@@ -15,9 +15,13 @@
   <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/version-1.0.0-38BDF8.svg?style=flat-square" alt="Version 1.0.0" /></a>
 </p>
 
-When you know a repository inside out, it is surprisingly easy to ship hidden assumptions ("one command runs everything" when a weight file or separate Python environment is missing) or unintended traces (personal commit emails, internal project codenames, draft roadmaps, or leftover agent files).
+<p align="center">
+  <strong>English</strong> | <a href="README.zh-CN.md">简体中文</a>
+</p>
 
-**`first-look`** gives any Agent Skills–compatible coding agent a disciplined, read-only **external-visitor lens** before you publish a repo or when you inspect an unfamiliar one.
+When you know a repository inside out, it is surprisingly easy to ship hidden assumptions ("one command runs everything" when a model weight or separate runtime environment is missing) or unintended traces (personal commit emails, internal project codenames, draft roadmaps, or leftover agent files).
+
+**`first-look`** gives any Agent Skills–compatible coding agent a disciplined, read-only **external-visitor lens** before you publish a repository or whenever you inspect an unfamiliar one.
 
 ---
 
@@ -67,10 +71,10 @@ rm -rf ~/.agents/skills/first-look   # or ~/.claude/skills/first-look
 ## Usage Examples
 
 - *"Run a `first-look` check on this repo before I make it public."*
-- *"用 `first-look` 看看这个仓库发 GitHub 前有没有交付缺口或内部信息暴露。"*
+- *"Use `first-look` to audit this repository for missing runtime prerequisites or exposed internal traces."*
 - *"Run `first-look` in **deep mode** on `dist/mypkg-1.0.0.tar.gz` in a clean container."*
 
-The agent replies in the language of your prompt using aligned CN/EN status labels.
+The agent replies in the language of your prompt using consistent English or Chinese status labels.
 
 ---
 
@@ -87,5 +91,6 @@ The agent replies in the language of your prompt using aligned CN/EN status labe
 - [`references/checklist.md`](references/checklist.md) — Safe read-only commands, source-level redaction checks, non-Git/archive/OCI/LFS/multi-license rules, and sandbox isolation rules
 - [`references/examples.md`](references/examples.md) — Calibrated Light & Deep output examples plus common anti-patterns
 - [`assets/`](assets/) — Repository hero banner ([`hero.png`](assets/hero.png), 1280×640, GitHub Social Preview ready) and square icon ([`logo.png`](assets/logo.png), 512×512)
+- [`README.md`](README.md) / [`README.zh-CN.md`](README.zh-CN.md) — English and Simplified Chinese documentation
 - [`CHANGELOG.md`](CHANGELOG.md) — Release history
 - [`LICENSE`](LICENSE) — MIT License
