@@ -2,6 +2,14 @@
 
 All notable changes to `first-look` are documented in this file.
 
+## [Unreleased]
+
+### Fixed
+- **Portable shell snippets in `references/checklist.md`**: replaced the `$GIT_SAFE` string prefix with a `git_safe()` shell function so commands behave identically under `sh`, `bash`, and interactive `zsh` (zsh does not word-split unquoted variables).
+- **macOS-compatible remote probe**: stock macOS lacks GNU `timeout`; the anonymous `ls-remote` probe now prefers `timeout` when present and falls back to `perl -e 'alarm shift; exec @ARGV'`.
+- **Safe manifest temp file**: archive listing scan now uses `mktemp "${TMPDIR:-/tmp}/fl_manifest.XXXXXX"` inside a subshell with an `EXIT` trap cleanup instead of a hardcoded `/tmp/fl_manifest.txt`, avoiding concurrent collisions; the subshell sets `setopt null_glob` under `zsh` so unmatched `dist/*.tar.gz` patterns skip instead of aborting the loop.
+- **Honest `grep` exit codes**: the annotated-tag scan and manifest pattern scan no longer use `|| true`; `grep` exit code `1` (no match) is treated as clean while `>=2` emits `SCAN_ERROR`, consistent with the stated error-handling rule.
+
 ## [1.0.0] - 2026-11-22
 
 Initial public release of the `first-look` Agent Skill.

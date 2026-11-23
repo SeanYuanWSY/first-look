@@ -17,17 +17,35 @@
 ### A. Git 仓库（安全只读封装）
 
 ```sh
-# 统一只读安全前缀：不写索引、不触发仓库 fsmonitor/hooks、不弹凭据框
-GIT_SAFE="env GIT_OPTIONAL_LOCKS=0 GIT_TERMINAL_PROMPT=0 git -c core.fsmonitor=false -c core.hooksPath=/dev/null"
+# 统一只读安全封装：不写索引、不触发仓库 fsmonitor/hooks、不弹凭据框。
+# 用函数而非字符串前缀：确保 sh/bash/zsh 行为一致（zsh 默认不对 $VAR 做分词）。
+git_safe() {
+  env GIT_OPTIONAL_LOCKS=0 GIT_TERMINAL_PROMPT=0 \
+    git -c core.fsmonitor=false -c core.hooksPath=/dev/null "$@"
+}
 
-$GIT_SAFE rev-parse --show-toplevel --short HEAD
-$GIT_SAFE status --short
-$GIT_SAFE branch -a
-$GIT_SAFE tag -l
+git_safe rev-parse --show-toplevel --short HEAD
+git_safe status --short
+git_safe branch -a
+git_safe tag -l
 ```
 
 - **限定实际发布范围**：确定将推送的 ref（如 `main`、`v1.0.0`），后续历史扫描只扫这些**可达 refs**，不要拿 `--all` 混入不会推送的本地实验分支。
-- **匿名远端探测（含超时，防止私仓凭据误判为公开）**：仅对已确认的公开 HTTPS URL 做匿名探测（`GIT_TERMINAL_PROMPT=0 timeout 10 git -c credential.helper= ls-remote https://...`）。若离线、无远端或探测失败，继续本地体检并将“线上已可见”标 `未核实`。
+- **匿名远端探测（含超时，防止私仓凭据误判为公开）**：仅对已确认的公开 HTTPS URL 做匿名探测；`timeout` 并非 macOS 自带命令，用 `command -v` 探测后以 `perl` 兜底，两者均保持非交互（`GIT_TERMINAL_PROMPT=0` + 空凭据助手）。若离线、无远端或探测失败，继续本地体检并将“线上已可见”标 `未核实`。
+
+```sh
+# 匿名探测远端 URL（优先 timeout；无 timeout 时用 perl alarm 兜底）
+probe_remote() {
+  url="$1"
+  if command -v timeout >/dev/null 2>&1; then
+    env GIT_TERMINAL_PROMPT=0 timeout 10 git -c credential.helper= ls-remote "$url"
+  else
+    perl -e 'alarm shift; exec @ARGV' 10 \
+      env GIT_TERMINAL_PROMPT=0 git -c credential.helper= ls-remote "$url"
+  fi
+}
+probe_remote https://...
+```
 - **平台已公开残留（如适用）**：远端 `ls-remote` 为空不代表平台零痕迹；若仓库曾公开或已有 PR/CI，需提示核查旧 Release 附件、Actions 日志与产物、Pages 与公开 fork（未查标 `未核实`）。
 
 ### B. 非 Git 目录 / 源码包 / 发布归档
@@ -37,13 +55,22 @@ $GIT_SAFE tag -l
 - **逐个遍历归档，严禁多文件通配符直传 `tar` 或用 `head` 静默截断**：
 
 ```sh
-# 逐个归档检查完整清单并保留退出码；同时检查是否误夹带 .git/ 或越界路径
-for f in dist/*.tar.gz dist/*.tgz; do
-  [ -e "$f" ] || continue
-  tar -tzf "$f" > /tmp/fl_manifest.txt || { echo "ARCHIVE_READ_ERROR:$f" >&2; exit 2; }
-  wc -l /tmp/fl_manifest.txt
-  grep -E '(^|/)\.git(/|$)|(^|/)\.\.(/|$)|^/' /tmp/fl_manifest.txt && echo "ARCHIVE_RISK:$f"
-done
+# 逐个归档检查完整清单并保留退出码；同时检查是否误夹带 .git/ 或越界路径。
+# 注意：用 mktemp 而非固定 /tmp 路径（并发安全、尊重 TMPDIR），且用 grep 退出码区分 干净/命中/报错。
+(
+  manifest="$(mktemp "${TMPDIR:-/tmp}/fl_manifest.XXXXXX")" || exit 2
+  trap 'rm -f "$manifest"' EXIT
+  # zsh 对未命中的 glob 会报 "no matches found" 并中止循环；subshell 内开启 null_glob 使其按空列表跳过（sh/bash 默认即跳过，无需设置）
+  [ -n "${ZSH_VERSION-}" ] && setopt null_glob
+  for f in dist/*.tar.gz dist/*.tgz; do
+    [ -e "$f" ] || continue
+    tar -tzf "$f" > "$manifest" || { echo "ARCHIVE_READ_ERROR:$f" >&2; exit 2; }
+    wc -l < "$manifest"
+    grep -E '(^|/)\.git(/|$)|(^|/)\.\.(/|$)|^/' "$manifest"; rc=$?
+    if [ "$rc" -eq 0 ]; then echo "ARCHIVE_RISK:$f";
+    elif [ "$rc" -gt 1 ]; then echo "MANIFEST_SCAN_ERROR:$f:rc=$rc" >&2; fi
+  done
+)
 ```
 
 - **Wheel / sdist / OCI 容器镜像**：除源码树外，还须核对实际打包产物清单；OCI 镜像需检查历史层与配置（避免上层删除的密钥残留在下层），无法检查时标 `未核实`。
@@ -56,7 +83,7 @@ done
 
 ```sh
 # 替换 <push-ref> 为实际拟发布分支或标签（如 HEAD 或 main）
-$GIT_SAFE log "<push-ref>" --format='%h%x09%ae%x09%ce' | awk -F'\t' '
+git_safe log "<push-ref>" --format='%h%x09%ae%x09%ce' | awk -F'\t' '
 function kind(e) {
   if (e ~ /users\.noreply\.github\.com$/) return "noreply"
   return (index(e, "@") > 1 ? "plaintext_email" : "non_email")
@@ -76,25 +103,28 @@ END { for (k in seen) print k " (commits=" seen[k] ")" }'
 ```sh
 # 1) 疑似凭据/私钥/带认证 URL（只列文件名，绝不打印原行）
 PATTERN_SECRET='BEGIN [A-Z ]*PRIVATE KEY|sk-[A-Za-z0-9]{20,}|ghp_[A-Za-z0-9]{20,}|github_pat_|AKIA[0-9A-Z]{16}|://[^/@[:space:]]+:[^/@[:space:]]+@'
-$GIT_SAFE grep -l -E "$PATTERN_SECRET" -- . ; rc=$?
+git_safe grep -l -E "$PATTERN_SECRET" -- . ; rc=$?
 [ "$rc" -le 1 ] || echo "SCAN_ERROR:secret_grep_rc=$rc" >&2
 
 # 2) AI/Agent 协作痕迹、本机绝对路径与明确内部计划线索（只输出 文件:命中数，绝不回显含用户名/路径的原行）
 PATTERN_TRACE='\.claude/|CLAUDE\.md|AGENTS\.md|GEMINI\.md|\.cursor/|\.cursorrules|\.windsurfrules|copilot-instructions\.md|\.aider|\.specstory/|\.codex/|\.kiro/|\.ai/|/Users/|/home/|C:\\Users\\|next phase|roadmap|user rule'
-$GIT_SAFE grep -c -i -E "$PATTERN_TRACE" -- . ; rc=$?
+git_safe grep -c -i -E "$PATTERN_TRACE" -- . ; rc=$?
 [ "$rc" -le 1 ] || echo "SCAN_ERROR:trace_grep_rc=$rc" >&2
 ```
 
-- **历史已删文件与附注标签（同样源头脱敏）**：私仓转公仓前，须扫完整可达历史中曾提交后删除的文件名（`$GIT_SAFE log "<push-ref>" --diff-filter=D --summary`），并对附注标签正文做脱敏计数（不直接打印原始标签正文）：
+- **历史已删文件与附注标签（同样源头脱敏）**：私仓转公仓前，须扫完整可达历史中曾提交后删除的文件名（`git_safe log "<push-ref>" --diff-filter=D --summary`），并对附注标签正文做脱敏计数（不直接打印原始标签正文）：
 
 ```sh
 # 仅输出 标签名 + 命中类别计数，绝不回显原始标签正文或邮箱
-$GIT_SAFE for-each-ref refs/tags --format='%(refname:short)%09%(objecttype)' | while IFS="$(printf '\t')" read -r tag otype; do
+git_safe for-each-ref refs/tags --format='%(refname:short)%09%(objecttype)' | while IFS="$(printf '\t')" read -r tag otype; do
   [ "$otype" = "tag" ] || continue
-  body="$($GIT_SAFE for-each-ref "refs/tags/$tag" --format='%(contents)')"
-  sec_hits="$(printf '%s\n' "$body" | grep -c -E "$PATTERN_SECRET" || true)"
-  tr_hits="$(printf '%s\n' "$body" | grep -c -i -E "$PATTERN_TRACE" || true)"
-  [ "$sec_hits" -gt 0 ] || [ "$tr_hits" -gt 0 ] && printf 'tag=%s secret_hits=%s trace_hits=%s\n' "$tag" "$sec_hits" "$tr_hits"
+  body="$(git_safe for-each-ref "refs/tags/$tag" --format='%(contents)')"
+  # grep -c 退出码：0=有命中、1=干净、>=2=报错（不得用 || true 掩盖）
+  sec_hits="$(printf '%s\n' "$body" | grep -c -E "$PATTERN_SECRET")"; sec_rc=$?
+  if [ "$sec_rc" -ge 2 ]; then echo "SCAN_ERROR:tag=$tag:rc=$sec_rc" >&2; break; fi
+  tr_hits="$(printf '%s\n' "$body" | grep -c -i -E "$PATTERN_TRACE")"; tr_rc=$?
+  if [ "$tr_rc" -ge 2 ]; then echo "SCAN_ERROR:tag=$tag:rc=$tr_rc" >&2; break; fi
+  [ "${sec_hits:-0}" -gt 0 ] || [ "${tr_hits:-0}" -gt 0 ] && printf 'tag=%s secret_hits=%s trace_hits=%s\n' "$tag" "$sec_hits" "$tr_hits"
 done
 ```
 
