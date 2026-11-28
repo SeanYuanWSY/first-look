@@ -32,7 +32,7 @@ If you do not specify which type of repository is being audited, the agent asks 
 | Lens | Focus | Output focus |
 | --- | --- | --- |
 | **Research / Model** | Models, paper implementations, scientific libraries | 5-layer delivery table per stage (Code, Runtime, Weights/Data, Licenses/Hardware, Network/Credentials) and hard reproduction blockers. |
-| **Public Tool / Skill UX** | CLIs, libraries, Agent Skills, user-facing apps | 4-step first-visit onboarding table (10s comprehension, zero-config start, generalizability without lock-in, doc-vs-code parity). |
+| **Public Tool / Skill UX** | CLIs, libraries, Agent Skills, user-facing apps | 3-block first-visit walkthrough (1-sentence verdict, 4-step real onboarding flow with exact friction points, actionable pre-release gaps & privacy summary without noisy filler). |
 
 | Depth | Trigger | What it does |
 | --- | --- | --- |
