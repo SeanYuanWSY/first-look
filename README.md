@@ -12,7 +12,7 @@
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-0EA5E9.svg?style=flat-square" alt="MIT License" /></a>
   <a href="https://agentskills.io/"><img src="https://img.shields.io/badge/Agent_Skills-compatible-10B981.svg?style=flat-square" alt="Agent Skills Compatible" /></a>
-  <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/version-1.0.0-38BDF8.svg?style=flat-square" alt="Version 1.0.0" /></a>
+  <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/version-1.1.0-38BDF8.svg?style=flat-square" alt="Version 1.1.0" /></a>
 </p>
 
 <p align="center">
@@ -25,15 +25,22 @@ When you know a repository inside out, it is surprisingly easy to ship hidden as
 
 ---
 
-## Two Modes
+## Two Lenses × Two Depths
 
-| Mode | Trigger | What it does |
+If you do not specify which type of repository is being audited, the agent asks one quick routing question first:
+
+| Lens | Focus | Output focus |
 | --- | --- | --- |
-| **Light (default)** | Any normal first-look / pre-release check | **Read-only.** Never installs packages or downloads large files. Outputs 4 compact blocks: **1-sentence verdict**, **5-layer delivery boundary table**, **risk-ranked external exposure table**, and **public claims guardrail**. |
+| **Research / Model** | Models, paper implementations, scientific libraries | 5-layer delivery table per stage (Code, Runtime, Weights/Data, Licenses/Hardware, Network/Credentials) and hard reproduction blockers. |
+| **Public Tool / Skill UX** | CLIs, libraries, Agent Skills, user-facing apps | 4-step first-visit onboarding table (10s comprehension, zero-config start, generalizability without lock-in, doc-vs-code parity). |
+
+| Depth | Trigger | What it does |
+| --- | --- | --- |
+| **Light (default)** | Any normal first-look / pre-release check | **Read-only.** Never installs packages or downloads large files. Outputs 4 compact blocks: **1-sentence verdict**, **delivery / UX table**, **risk-ranked external exposure table**, and **public claims guardrail**. |
 | **Deep (explicit)** | Only when you explicitly ask to install & run | Runs the actual release artifact inside a **disposable sandbox** (empty `HOME`, stripped credentials, verified archive paths) and binds every `Executed` verdict to the exact channel and digest. Refuses to execute on the host if isolation is unavailable. |
 
 ### What Light Mode Audits
-- **True delivery boundaries (5 layers per stage)**: Code, Interpreter/Runtime, Weights/Data, Licenses/Platform permissions, and Network/Credentials — with explicit failure modes (`Hard stop` / `Fallback` / `Alternative` / `Unknown`) and evidence levels (`Doc claim` / `Static verified` / `Executed` / `Unverified`).
+- **Delivery boundaries or Tool onboarding UX**: structured per-stage check depending on the selected lens ([`references/checklist.md`](references/checklist.md) §4A / §4B).
 - **External exposure (3 visibility tiers)**: Separates `Local only`, `Planned public` (tracked tree, full reachable Git history, archives/packages), and `Already public` (remote/CI/releases/forks).
   - Source-level redaction: scanners never dump raw secrets, personal emails, or local usernames into tool logs.
   - Evidence-only AI/agent detection: reports concrete files/lines neutrally (never guesses authorship from prose style, and never flags intentionally published `AGENTS.md`/`CLAUDE.md` as defects by default).
@@ -70,8 +77,8 @@ rm -rf ~/.agents/skills/first-look   # or ~/.claude/skills/first-look
 
 ## Usage Examples
 
-- *"Run a `first-look` check on this repo before I make it public."*
-- *"Use `first-look` to audit this repository for missing runtime prerequisites or exposed internal traces."*
+- *"Run a `first-look` check on this research repo before publishing — focus on weights, dataset requirements, and reproduction blockers."*
+- *"Use `first-look` from a public-tool UX lens to check whether a first-time visitor understands our CLI/Skill in 10 seconds and exposes any private traces."*
 - *"Run `first-look` in **deep mode** on `dist/mypkg-1.0.0.tar.gz` in a clean container."*
 
 The agent replies in the language of your prompt using consistent English or Chinese status labels.

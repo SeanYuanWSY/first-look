@@ -2,7 +2,13 @@
 
 All notable changes to `first-look` are documented in this file.
 
-## [Unreleased]
+## [1.1.0] - 2026-11-28
+
+### Added
+- **Dual-perspective audit routing (`SKILL.md`, `references/checklist.md` §4A/§4B, `references/examples.md`)**: separates **Research / Model lens** (weights, datasets, runtime layers, academic vs. commercial licenses, hard stops) from **Public Tool / Skill UX lens** (10-second first-visit clarity, zero-config onboarding, generalizability without host lock-in, doc-vs-code parity). If the caller does not specify a lens, the skill asks 1 quick routing question first.
+
+### Changed
+- **Concise `SKILL.md` frontmatter**: tightened `description` with bilingual triggers and explicit non-goals for clean skill discovery.
 
 ### Fixed
 - **Portable shell snippets in `references/checklist.md`**: replaced the `$GIT_SAFE` string prefix with a `git_safe()` shell function so commands behave identically under `sh`, `bash`, and interactive `zsh` (zsh does not word-split unquoted variables).
